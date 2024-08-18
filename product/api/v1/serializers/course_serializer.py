@@ -91,17 +91,11 @@ class CourseSerializer(serializers.ModelSerializer):
     groups_filled_percent = serializers.SerializerMethodField(read_only=True)
     demand_course_percent = serializers.SerializerMethodField(read_only=True)
 
-    @staticmethod
-    def get_lessons_count(obj: Course = None):
-        """Количество уроков в курсе."""
-        return Lesson.objects.filter(course=obj).count()
 
-    @staticmethod
-    def get_students_count(_self, obj=None):
+    def get_students_count(_self, obj: Course = None):
         """Общее количество студентов на курсе."""
         return Subscription.objects.filter(course=obj).count()
 
-    @staticmethod
     def get_groups_filled_percent(_self, obj: Course = None):
         """Процент заполнения групп, если в группе максимум 30 чел."""
         groups = Group.objects.filter(course=obj).annotate(
@@ -114,8 +108,11 @@ class CourseSerializer(serializers.ModelSerializer):
             return 0
         return sum(percentages) / len(percentages)
 
-    @staticmethod
-    def get_demand_course_percent(_self, obj=None):
+    def get_lessons_count(_self, obj: Course = None):
+        """Количество уроков в курсе."""
+        return Lesson.objects.filter(course=obj).count()
+
+    def get_demand_course_percent(_self, obj: Course = None):
         """Процент приобретения курса."""
         return Subscription.objects.filter(course=obj).count() / User.objects.count() * 100
 

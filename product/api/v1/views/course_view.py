@@ -58,17 +58,14 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     queryset = Course.objects.all()
     permission_classes = (ReadOnlyOrIsAdmin,)
+    serializer_class = CourseSerializer
 
     def get_serializer_class(self):
         if self.action in ['list', 'retrieve', 'pay', 'products_for_pay']:
             return CourseSerializer
         return CreateCourseSerializer
 
-    @action(
-        methods=['post'],
-        detail=True,
-        permission_classes=(permissions.IsAuthenticated,)
-    )
+    @action(methods=['post'], detail=True, permission_classes=(permissions.IsAuthenticated,))
     def pay(self, request, pk):
         """Покупка доступа к курсу (подписка на курс)."""
         course = get_object_or_404(Course, id=pk)
@@ -81,6 +78,9 @@ class CourseViewSet(viewsets.ModelViewSet):
         if balance.balance < data['cost']:
             return Response(data={"error": "Недостаточно средств!"}, status=status.HTTP_400_BAD_REQUEST)
 
+        if Subscription.objects.filter(user=user, course=course).exists():
+            return Response(data={"error": "Вы уже подписаны на этот курс!"}, status=status.HTTP_400_BAD_REQUEST)
+
         balance.balance -= data['cost']
         balance.save()
 
@@ -92,17 +92,13 @@ class CourseViewSet(viewsets.ModelViewSet):
         )
 
 
-    @action(
-        methods=['get'],
-        detail=False,
-        permission_classes=(permissions.IsAuthenticated, )
-    )
+    @action(methods=['get'], detail=False, permission_classes=(permissions.IsAuthenticated,))
     def products_for_pay(self, request):
         query_set = self.get_queryset()
-        filtered_queryset = query_set.filter(start_date__gte=timezone.now())
 
-        not_subscribed = filtered_queryset.exclude(
-            id__in=Subscription.objects.filter(user=request.user).values('course_id'))
+        not_subscribed = query_set.exclude(
+            id__in=Subscription.objects.filter(user=request.user).values('course_id')
+        )
 
         serializer = self.get_serializer(not_subscribed, many=True)
 
